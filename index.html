@@ -18,7 +18,7 @@
 <body>
 	<div class="reveal">
 		<div class="slides">
-			<section data-background-image="assets/img/blade_chroma.png">
+			<section data-background-image="/assets/img/blade_chroma.png">
 				<h2 style="color: black;">Introduction to Numerical Hydrodynamics</h2>
 				<p>
 					<small><a href="https://eigendev.github.io/" target="_blank">Marcus DuPont</a>, author of SIMBI, NYU</small>
@@ -152,7 +152,7 @@
 				</section>
 				<section>
 					<h4>Pictorially, series of Riemann problems</h4>
-					<img src="assets/img/godunov2.png"
+					<img src="/assets/img/godunov2.png"
 						style="height: 623px; margin: 0 auto 4rem auto; background: transparent;" alt="">
 				</section>
 				<section>
@@ -206,7 +206,7 @@
 				</section>
 				<section>
 					<h3>Pictorially, HLL</h3>
-					<img src="assets/img/hll.jpg"
+					<img src="/assets/img/hll.jpg"
 						style="height: 623px; margin: 0 auto 4rem auto; background: transparent;" alt="">
 				</section>
 				<section>
@@ -268,14 +268,14 @@
 				</section>
 				<section>
 					<h3>HLLC, pictorially</h3>
-					<img src="assets/img/hllc.jpg"
+					<img src="/assets/img/hllc.jpg"
 						style="height: 623px; margin: 0 auto 4rem auto; background: transparent;" alt="">
 
 				</section>
 			</section>
 			<section>
 				<h3>Noticing the difference</h3>
-				<img src="assets/img/simbi_hllc.png"
+				<img src="/assets/img/simbi_hllc.png"
 					style="height: 512px; margin: 0 auto 4rem auto; background: transparent;" alt="">
 			</section>
 			<section>
@@ -920,46 +920,46 @@ Average zone update/sec for 15253 iterations was 4.32e+06 zones/sec
 						<pre><code>
 	simbi plot data/1000.chkpt* --field rho p v 
 						</code></pre>
-						<img style="height: 450px" src="assets/img/sod_ex.png" alt="">
+						<img style="height: 450px" src="/assets/img/sod_ex.png" alt="">
 				</section>
 				<section>
 					<h2>Visualizing, moving mesh</h2>
 					<pre><code>
 simbi plot data/marti_muller/1000.chkpt* --field d p u --kind movie
 					</code></pre>
-					<video data-autoplay data-background-video-loop="loop" src="assets/mov/marti_muller.mp4" type="video/mp4" height="400px"></video>
+					<video data-autoplay data-background-video-loop="loop" src="/assets/mov/marti_muller.mp4" type="video/mp4" height="400px"></video>
 				</section>
 				<section>
 					<h2>Visualizing, 2D shock tube</h2>
 					<pre><code>
 simbi plot data/quad_shocktube/400.chkpt* --field d --kind movie --log
 					</code></pre>
-					<video data-autoplay data-background-video-loop="loop" src="assets/mov/2D_shocktube.mp4" type="video/mp4" height="400px"></video>
+					<video data-autoplay data-background-video-loop="loop" src="/assets/mov/2D_shocktube.mp4" type="video/mp4" height="400px"></video>
 				</section>
 				<section>
 					<h3>Visualizing, astrophysical jet</h3>
 					<pre><code>
 simbi plot data/jet/2048.chkpt* --field d --kind movie --pictorial --dbg
 					</code></pre>
-					<video data-autoplay data-background-video-loop="loop" src="assets/mov/jet.mp4" type="video/mp4" height="400px"></video>
+					<video data-autoplay data-background-video-loop="loop" src="/assets/mov/jet.mp4" type="video/mp4" height="400px"></video>
 				</section>
 			</section>
 			<section>
 				<section>
 					<h3>Places simbi was used for science</h3>
-					<img src="assets/img/ellipsars.png" alt="">
+					<img src="/assets/img/ellipsars.png" alt="">
 				</section>
 				<section>
 					<h3>Places simbi was used for science</h3>
-					<img src="assets/img/blades.png" alt="">
+					<img src="/assets/img/blades.png" alt="">
 				</section>
 				<section>
 					<h3>Places simbi was used for science</h3>
-					<img src="assets/img/roche.png" alt="">
+					<img src="/assets/img/roche.png" alt="">
 				</section>
 				<section>
 					<h3>Places simbi was used for science</h3>
-					<img src="assets/img/bow.png" alt="">
+					<img src="/assets/img/bow.png" alt="">
 				</section>
 			</section>
 			<section>
@@ -977,7 +977,7 @@ simbi plot data/jet/2048.chkpt* --field d --kind movie --pictorial --dbg
 				<section>
 					<h3>Code base</h3>
 					<h4><a href="https://github.com/EigenDev/simbi/tree/main">git repo</a></h4>
-					<img src="assets/img/qr-code.png" style="height: 512px; margin: 0 auto 4rem auto; background-color: transparent;" alt="">
+					<img src="/assets/img/qr-code.png" style="height: 512px; margin: 0 auto 4rem auto; background-color: transparent;" alt="">
 				</section>
 			</section>
 		</div>
