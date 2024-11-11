@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+	<title>HIP Programming crash course</title>
+
+	<link rel="stylesheet" href="dist/reset.css">
+	<link rel="stylesheet" href="dist/reveal.css">
+	<link rel="stylesheet" href="dist/theme/serif.css">
+
+	<!-- Theme used for syntax highlighted code -->
+	<link rel="stylesheet" href="plugin/highlight/monokai.css">
+</head>
+
+<body>
+	<style type="text/css">
+		<!-- Custom Styles For Our Presentation 
+		-->
+		.left
+		{
+		text-align:
+		left;
+		}
+		.size
+		{
+		font-size:
+		80px;
+		}
+		p
+		{
+		text-align:
+		left;
+		}
+		.slide
+		*:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6)
+		{
+		font-size:
+		18pt;
+		}
+	</style>
+	<div class="reveal">
+		<div class="slides">
+			<section data-background-image="/assets/img/blade_chroma.png">
+				<h2 style="color: black;">Introduction to HIP Programming</h2>
+				<p>
+					<small><a href="https://eigendev.github.io/" target="_blank">Marcus DuPont</a>, author of SIMBI<br>
+						Spitzer & FFPS Fellow, Princeton University</small>
+				</p>
+			</section>
+			<section>
+				<h2>Overview</h2>
+				<div style="width: 50%; margin: 0 auto;">
+					<ul>
+						<li>What is HIP
+							<ul>
+								<li>Basic Idea</li>
+								<li>Portability</li>
+							</ul>
+						</li>
+						<li>HIP Hello World (Kinda)
+							<ul>
+								<li>Syntax</li>
+								<li>Some Tricks</li>
+							</ul>
+						</li>
+						<li>Maybe: Heterogeneous Programming / Code generation</li>
+					</ul>
+				</div>
+			</section>
+			<section>
+				<h1>What is HIP?</h1>
+			</section>
+			<section>
+				<h2>Basic Idea</h2>
+				<p>
+					<strong>H</strong>eterogeneous-compute <strong>I</strong>nterface for <strong>P</strong>ortability
+					(HIP) is a C++ runtime API and kernel language that
+					allows developers to create portable applications for AMD and NVIDIA GPUs from a single codebase.
+				</p>
+				<p>
+					It is part of a larger initiative to ease the transition to GPU computing via a large software
+					distro called the Radeon Open Compute Platform, or ROCm.
+				</p>
+			</section>
+			<section>
+				<h2>HIP:</h2>
+				<ul>
+					<li>is open-source</li>
+					<li>is syntactically similar to CUDA (can even find-replace <code>cuda</code> functions with
+						<code>hip</code>, and most simple programs will still work.)
+					</li>
+					<li>supports a good chunk of the CUDA runtime out of the box
+						(e.g., <code>cudaMalloc, cudaMemset, cudaMemcpy</code>)</li>
+				</ul>
+			</section>
+			<section>
+				<h2>Comparison Table</h2>
+				<table border="1">
+					<tr>
+						<th>Acronym</th>
+						<th>Meaning</th>
+					</tr>
+					<tr>
+						<td>HIP (by AMD)</td>
+						<td>Heterogeneous-compute Interface for Portability</td>
+					</tr>
+					<tr>
+						<td>CUDA (by Nvidia)</td>
+						<td>Compute Unified Device Architecture</td>
+					</tr>
+				</table>
+			</section>
+			<section>
+				<h2>CUDA vs HIP Runtime Calls</h2>
+				<table border="1">
+					<tr>
+						<th>Aspect</th>
+						<th>CUDA</th>
+						<th>HIP</th>
+					</tr>
+					<tr>
+						<td>Memory Allocation</td>
+						<td><code>cudaMalloc</code></td>
+						<td><code>hipMalloc</code></td>
+					</tr>
+					<tr>
+						<td>Memory Deallocation</td>
+						<td><code>cudaFree</code></td>
+						<td><code>hipFree</code></td>
+					</tr>
+					<tr>
+						<td>Memory Copy</td>
+						<td><code>cudaMemcpy</code></td>
+						<td><code>hipMemcpy</code></td>
+					</tr>
+					<tr>
+						<td>Memory Set</td>
+						<td><code>cudaMemset</code></td>
+						<td><code>hipMemset</code></td>
+					</tr>
+					<tr>
+						<td>Kernel Launch</td>
+						<td><code>kernel<<<blocks, threads>>>(args)</code></td>
+						<td><code>kernel<<<blocks, threads>>>(args)</code></td>
+					</tr>
+					<tr>
+						<td>Device Synchronization</td>
+						<td><code>cudaDeviceSynchronize</code></td>
+						<td><code>hipDeviceSynchronize</code></td>
+					</tr>
+					<tr>
+						<td>Get Last Error</td>
+						<td><code>cudaGetLastError</code></td>
+						<td><code>hipGetLastError</code></td>
+					</tr>
+					<tr>
+						<td>Device Reset</td>
+						<td><code>cudaDeviceReset</code></td>
+						<td><code>hipDeviceReset</code></td>
+					</tr>
+				</table>
+			</section>
+			<section>
+				<!-- <h2>Comparison Table: Host Code vs Device Code in HIP</h2> -->
+				<table border="1">
+					<tr>
+						<th>Aspect</th>
+						<th>Host Code</th>
+						<th>Device Code</th>
+					</tr>
+					<tr>
+						<td>Execution Location</td>
+						<td>Runs on the CPU</td>
+						<td>Runs on the GPU</td>
+					</tr>
+					<tr>
+						<td>Function Declaration</td>
+						<td>Standard C++ functions</td>
+						<td>Declared with <code>__global__</code> or <code>__device__</code> qualifiers</td>
+					</tr>
+					<tr>
+						<td>Memory Allocation</td>
+						<td>Standard C++ memory allocation (e.g., <code>malloc</code>, <code>new</code>)</td>
+						<td>HIP memory allocation functions (e.g., <code>hipMalloc</code>, <code>hipFree</code>)</td>
+					</tr>
+					<tr>
+						<td>Memory Access</td>
+						<td>Direct access to CPU memory</td>
+						<td>Access to GPU memory, requires explicit data transfer between host and device</td>
+					</tr>
+					<tr>
+						<td>Data Transfer</td>
+						<td>Not required</td>
+						<td>Explicit data transfer using functions like <code>hipMemcpy</code></td>
+					</tr>
+					<tr>
+						<td>Parallelism</td>
+						<td>Typically sequential or multi-threaded using CPU threads</td>
+						<td>Massively parallel using GPU threads</td>
+					</tr>
+					<tr>
+						<td>Function Call</td>
+						<td>Standard function call</td>
+						<td>Kernel launch syntax (e.g., <code>kernel<<<blocks, threads>>>(args)</code>)</td>
+					</tr>
+				</table>
+			</section>
+			<section>
+				<h2>Warps on HIP (AMD) Devices</h2>
+				<p>
+					On AMD devices, the concept similar to CUDA's "warp" is called a "wavefront." A wavefront consists
+					of 64 threads, whereas a warp in CUDA consists of 32 threads. This difference in the number of
+					threads per execution unit is one of the key distinctions between AMD and NVIDIA architectures.
+				</p>
+
+			</section>
+			<section>
+				<p>
+					Here are some key differences between warps in CUDA and wavefronts in HIP:
+				</p>
+				<ul>
+					<li><strong>Number of Threads:</strong> A warp in CUDA consists of 32 threads, while a wavefront in
+						HIP consists of 64 threads.</li>
+					<li><strong>Execution Model:</strong> Both warps and wavefronts execute in a SIMD (Single
+						Instruction, Multiple Data) fashion, meaning all threads within a warp or wavefront execute the
+						same instruction simultaneously.</li>
+					<li><strong>Divergence Handling:</strong> In both CUDA and HIP, if threads within a warp or
+						wavefront diverge (i.e., follow different execution paths), the execution is serialized, which
+						can lead to performance penalties. However, the larger size of wavefronts in HIP can make
+						divergence more costly compared to CUDA.</li>
+					<li><strong>Synchronization:</strong> Synchronization within a warp or wavefront is implicit,
+						meaning that all threads within a warp or wavefront are always synchronized. Explicit
+						synchronization is required only when synchronizing threads across different warps or
+						wavefronts.</li>
+				</ul>
+				<p>
+					Understanding these differences is crucial for optimizing performance on AMD and NVIDIA GPUs, as the
+					size of warps and wavefronts can impact how you structure your parallel algorithms and manage thread
+					divergence.
+				</p>
+			</section>
+			<section>
+				<h2>Installation Guide</h2>
+				<p>
+					To install HIP, you need to install the ROCm software stack, which includes the HIP runtime and
+					compiler. The ROCm software stack is available for Linux operating systems and supports a wide range
+					of AMD GPUs.
+				</p>
+				<p>
+					To install ROCm, follow these steps:
+				</p>
+				<ol>
+					<li>Download the ROCm software stack from the <a href="https://rocmdocs.amd.com/en/latest/Installation_Guide/Installation-Guide.html" target="_blank">official ROCm website</a>.</li>
+					<li>Follow the installation instructions provided on the ROCm website for your specific Linux
+						distribution.</li>
+					<li>Once ROCm is installed, you can start using HIP to develop GPU-accelerated applications.</li>
+				</ol>
+				<p>Once HIP is installed, check that it works with the following command</p>
+				<pre><code class="language-bash">hipcc --version</code></pre>
+				<p>If that works, then compiling goes like:</p>
+				<pre><code class="language-bash">hipcc -o hello_world hello_world.cpp</code></pre>
+			</section>
+			<section>
+				<h2>Checking the platform</h2>
+				<p>
+					To check the platform, you can use the following code snippet:
+				</p>
+				<pre><code class="language-bash">hipconfig --platform</code></pre>
+				<p>
+					This will output the platform information, including the platform name, version, and other details.
+					For example, it might output:
+				</p>
+				<pre><code>Platform: ROCm
+Version: 4.0.0
+Device: AMD Radeon RX 5700 XT
+</code></pre>
+			<p>If the platform is autodetected incorrectly, it can be fixed by setting the correct environment variables. For example, if needing an Nvidia environment:</p>
+			<pre><code>export HIP_PLATFORM=nvidia; export HIP_RUNTIME=cuda; export HIP_COMPILER=nvcc</code></pre>
+
+			</section>
+			<section>
+				<h2>Portability</h2>
+				<p>
+					HIP allows developers to write code that can run on both AMD and NVIDIA GPUs. This is achieved by
+					providing a set of tools that allow developers to write code in a single-source manner, and then
+					compile it for either platform.
+				</p>
+				<p>
+					For example, the following code snippet shows how to write a simple vector addition kernel in HIP:
+				</p>
+				<pre><code data-trim data-noescap>
+						__global__ void vector_add(int *a, int *b, int *c, int n) {
+							int i = blockIdx.x * blockDim.x + threadIdx.x;
+							if (i < n) {
+								c[i] = a[i] + b[i];
+							}
+						}
+					</code></pre>
+					<p>It's the same as CUDA (!)</p>
+			</section>
+			<section>
+				<h2>HIP vs CUDA</h2>
+				<p>HIP is designed to be very similar to CUDA, making it easier for developers to port CUDA applications
+					to run on AMD hardware. Here are some key comparisons:</p>
+				<ul>
+					<li>HIP provides a similar API to CUDA, with many functions having the same names and parameters.
+					</li>
+					<li>HIP supports both AMD and NVIDIA GPUs, while CUDA is specific to NVIDIA GPUs.</li>
+					<li>HIP code can be compiled with both HIPCC (for AMD GPUs) and NVCC (for NVIDIA GPUs).</li>
+				</ul>
+			</section>
+
+			<section>
+				<h2>HIP Runtime API Examples</h2>
+				<h3>Vector Addition Example</h3>
+				<pre><code class="language-cpp"><script type="text/template">
+#include "hip/hip_runtime.h>"
+#include <iostream>
+
+// HIP kernel for vector addition
+__global__ void vector_add(const double* A, const double* B, double* C, int N) {
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx < N) {
+		C[idx] = A[idx] + B[idx];
+	}
+}
+
+// Host code
+int main() {
+	constexpr auto N    = 1 << 20;
+	constexpr auto size = N * sizeof(double);
+
+	// Allocate memory on host
+	double *h_A = (double*)malloc(size);
+	double *h_B = (double*)malloc(size);
+	double *h_C = (double*)malloc(size);
+
+	// Initialize vectors
+	for (int i = 0; i < N; i++) {
+		h_A[i] = static_cast<double>(i);
+		h_B[i] = static_cast<double>(i);
+	}
+
+	// Allocate memory on device
+	double *d_A, *d_B, *d_C;
+	hipMalloc(&d_A, size);
+	hipMalloc(&d_B, size);
+	hipMalloc(&d_C, size);
+
+	// Copy data from host to device
+	hipMemcpy(d_A, h_A, size, hipMemcpyHostToDevice);
+	hipMemcpy(d_B, h_B, size, hipMemcpyHostToDevice);
+
+	// Launch kernel
+	int threadsPerBlock = 256;
+	int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
+	hipLaunchKernelGGL(vector_add, dim3(blocksPerGrid), dim3(threadsPerBlock), 0, 0, d_A, d_B, d_C, N);
+
+	// Copy result from device to host
+	hipMemcpy(h_C, d_C, size, hipMemcpyDeviceToHost);
+
+	// Free device memory
+	hipFree(d_A);
+	hipFree(d_B);
+	hipFree(d_C);
+
+	// Free host memory
+	free(h_A);
+	free(h_B);
+	free(h_C);
+
+	std::cout << "Success!" << std::endl;
+
+	return 0;
+}
+			</script></code></pre>
+			</section>
+			<section>
+				<h2>Exploiting the C++ toolset</h2>
+				<p>Since HIP code is C++ at its core, we can utilize key C++ constructs
+					to make code a bit safer than C. For example, we can make custom vector
+					classes utilize C++'s context switching to handle the memory management
+					for us. The C++ context switching is called Resource Acquisition Is Initialization (RAII).</p>
+				<pre><code class="language-cpp", data-line-numbers="2-5|7-13|15-16|18-21|23-26|28-31|33-36|38-41|43-46|50-51|53-54|56-57|59-61|63-64|66-68|70-73|75-76|78-84|">><script type="text/template">
+#include "hip/hip_runtime.h>"
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+// HIP kernel for vector addition
+__global__ void vector_add(const double* A, const double* B, double* C, int N) {
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx < N) {
+		C[idx] = A[idx] + B[idx];
+	}
+}
+
+template <typename T>
+class hip_vector {
+public:
+	// Constructor
+	hip_vector(size_t size) : size(size) {
+		hipMalloc(&data, size * sizeof(T));
+	}
+	
+	// Destructor
+	~hip_vector() {
+		hipFree(data);
+	}
+	
+	// Function that copies std::vector data to device
+	void copy_to_device(const std::vector<T>& host_data) {
+		hipMemcpy(data, host_data.data(), size * sizeof(T), hipMemcpyHostToDevice);
+	}
+	
+	// Function that copies device data to std::vector
+	void copy_to_host(std::vector<T>& host_data) {
+		hipMemcpy(host_data.data(), data, size * sizeof(T), hipMemcpyDeviceToHost);
+	}
+	
+	// Function that returns a pointer to the beginning of the data
+	T* begin() {
+		return data;
+	}
+	
+	// Function that returns a pointer to tend of the data
+	T* end() {
+		return data + size;
+	}
+};
+
+int main() {
+	// Number of threads per block
+	constexpr auto threads_per_block = 256;
+
+	// Number of elements in the vector
+	constexpr int N = 1 << 20;
+
+	// Host vectors
+	std::vector<double> h_A(N), h_B(N), h_C(N);
+
+	// Initialize host vectors with values
+	std::generate(h_A.begin(), h_A.end(), [n = 0]() mutable { return n++; });
+	std::generate(h_B.begin(), h_B.end(), [n = 0]() mutable { return n++; });
+
+	// Device vectors
+	hip_vector<double> d_A(N), d_B(N), d_C(N);
+
+	// Copy data from host to device
+	d_A.copy_to_device(h_A);
+	d_B.copy_to_device(h_B);
+
+	// Launch the vector addition kernel
+	constexpr auto nBlocks = dim3((N + threads_per_block - 1) / threads_per_block);
+	constexpr auto nThreads = dim3(threads_per_block);
+	vector_add<<<nBlocks, nThreads, 0, 0>>>(d_A.begin(), d_B.begin(), d_C.begin(), N);
+
+	// Copy result from device to host
+	d_C.copy_to_host(h_C);
+
+	// Verify the results
+	for (int i = 0; i < N; i++) {
+		if (h_C[i] != h_A[i] + h_B[i]) {
+			std::cerr << "Error: mismatch at index " << i << std::endl;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+			</script></code></pre>
+			</section>
+			<section>
+				<h2>Bonus: Towards heterogeneous programming</h2>
+				<p>To reduce redundancy on writing CPU/GPU code, one can utilize macros and C++ lambda functions to
+					achieve a single-implementation style program.</p>
+				<pre><code class="language-cpp", data-line-numbers="2-5|6-13|14-20|21-22|24-30|31-33|36-38|40-45|47-52|54-59|61-66|68-71|73-76|78-81|83-90|92-96|99-100|102-104|106-107|109-111|113-120|122"><script type="text/template">
+#include <iostream>
+#include <vector>
+#include <algorithm>
+constexpr auto nThreads = 256;
+#ifdef __HIPCC__
+#include <hip/hip_runtime.h>
+constexpr auto on_gpu                = true;
+constexpr auto genMalloc             = hipMalloc;
+constexpr auto genFree               = hipFree;
+constexpr auto genMemcpy             = hipMemcpy;
+constexpr auto genMemcpyHostToDevice = hipMemcpyHostToDevice;
+constexpr auto genMemcpyDeviceToHost = hipMemcpyDeviceToHost;
+template <typename Function>
+__global__ void kernel_wrapper(int start, int end, Function func) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x + start;
+	if (i < end) {
+		func(i);
+	}
+}
+#define FOREACH(start, end, func) \
+	Kernel<<<(end - start + nThreads - 1) / nThreads, nThreads>>>(start, end, [=] __device__ (int i) { func(i); })
+#else
+#include <omp.h>
+constexpr auto on_gpu                = false;
+constexpr auto genMalloc             = malloc;
+constexpr auto genMemcpy             = memcpy;
+constexpr auto genFree               = free;
+constexpr auto genMemcpyHostToDevice = 0; // Not used in CPU code
+constexpr auto genMemcpyDeviceToHost = 0; // Not used in CPU code
+#define FOREACH(start, end, func) \
+	_Pragma("omp parallel for") \
+	for (int i = start; i < end; ++i) { func(i); }
+#endif
+
+// generic cpu/gpu vector class
+template <typename T>
+class gen_vector {
+public:
+	// Constructor
+	gen_vector(size_t size) : size(size), host_data(size) {
+		if constexpr(on_gpu) {	
+			genMalloc(&device_data, size * sizeof(T));
+		}
+	}
+
+	// Destructor
+	~gen_vector() {
+		if constexpr(on_gpu) {	
+			genFree(&device_data);
+		}
+	}
+
+	// Function to copy host data to device
+	void copy_to_device() {
+		if constexpr (on_gpu) {
+			genMemcpy(device_data, host_data.data(), size * sizeof(T), genMemcpyHostToDevice);
+		}
+	}
+
+	// Function to copy device data to host
+	void copy_to_host() {
+		if constexpr (on_gpu) {
+			genMemcpy(host_data.data(), device_data, size * sizeof(T), genMemcpyDeviceToHost);
+		}
+	}
+
+	// Function to access host data
+	std::vector<T>& host() {
+		return host_data;
+	}
+
+	// Function to access device data
+	T* device() {
+		return device_data;
+	}
+
+	// Function to get the size of the vector
+	size_t get_size() const {
+		return size;
+	}
+
+	// Function to access the data
+	T* data() {
+		if constexpr(on_gpu) {
+			return device_data;
+		} else {
+			return host_data.data();
+		}
+	}
+
+private:
+	size_t size;
+	std::vector<T> host_data;
+	T* device_data;
+};
+
+int main() {
+	constexpr auto N = 1 << 20;
+	gen_vector<double> vec(N);
+
+	// Initialize host data
+	std::vector<double>& host_data = vec.host();
+	std::fill(host_data.begin(), host_data.end(), 1.0);
+	
+	// Copy data to device
+	vec.copy_to_device();
+
+	FOREACH(0, N, [&](int i) {
+		vec.data()[i] *= 2.0;
+	});
+
+	// Verify the results
+	vec.copy_to_host();
+	for (int i = 0; i < N; i++) {
+		if (host_data[i] != 2.0) {
+			std::cerr << "Error: mismatch at index " << i << std::endl;
+			return 1;
+		}
+	}
+
+	std::cout << "Success!" << std::endl;
+	return 0;
+}
+				</script></code></pre>
+			</section>
+			<section>
+				<h2>Bonus^2: Code Generation</h2>
+				<p>
+					One could think even more modular and use code generation libraries. For example, the python-based <code>cogapp</code> does this. To generate
+					cpu or gpu code based on the platform, one could use the following code snippet within some, say, main.cpp.cog file:
+				</p>
+				<pre><code language="language-cpp"><script type="text/template">
+/* [[[cog
+import os
+gpu_platform = os.environ.get('GPU_PLATFORM', 'none')
+cog.outl(f'#include <iostream>')
+cog.outl(f'#include <vector>')
+cog.outl(f'#include <algorithm>')
+def include_file(filename):
+	with open(filename, 'r') as f:
+		return f.read()
+	
+if gpu_platform == "amd":
+	cog.outl(include_file("some_hip_code.cog"))
+elif gpu_platform == "nvidia":
+	cog.outl(include_file("some_cuda_code.cog"))
+else:
+	cog.outl(include_file("some_cpu_code.cog"))
+]]]
+[[[end]]]
+*/
+// the implementation code we saw before
+	</script></code></pre>
+			</section>
+			<section>
+				<p>The "some_cpu_code.cog" file might look like</p>
+				<pre><code language="language-cpp"><script type="text/template">
+#include <omp.h>
+constexpr auto on_gpu = false;
+constexpr auto genMalloc = malloc;
+constexpr auto genMemcpy = memcpy;
+constexpr auto genFree = free;
+constexpr auto genMemcpyHostToDevice = 0; // Not used in CPU code
+constexpr auto genMemcpyDeviceToHost = 0; // Not used in CPU code
+#define FOREACH(start, end, func)                                              \
+	_Pragma("omp parallel for") for (int i = start; i < end; ++i) { func(i); }
+				</script></code></pre>
+				<p>and so forth...</p>
+			</section>
+			<section>
+					<p>Then generating the code with:</p>
+				<pre><code class="language-bash">GPU_PLATFORM=amd cog -d -o main.cpp main.cpp.cog</code></pre>
+			</section>
+
+			<section>
+				<h2>Conclusion</h2>
+				<p>HIP and ROCm provide a powerful platform for developing GPU-accelerated applications that can run on
+					both AMD and NVIDIA hardware. By leveraging the similarities between HIP and CUDA, developers can
+					more easily port their existing CUDA applications to run on AMD GPUs. Furthermore, lambda functions 
+					make generic programming on cpu/gpu architectures very streamlined. This is the bread and butter of third-party
+					libraries like Kokkos.</p>
+			</section>
+		</div>
+	</div>
+
+	<script src="dist/reveal.js"></script>
+	<script src="plugin/notes/notes.js"></script>
+	<script src="plugin/markdown/markdown.js"></script>
+	<script src="plugin/highlight/highlight.js"></script>
+	<script>
+		// More info about initialization & config:
+		// - https://revealjs.com/initialization/
+		// - https://revealjs.com/config/
+		Reveal.initialize({
+			hash: true,
+
+			// Learn about plugins: https://revealjs.com/plugins/
+			plugins: [RevealMarkdown, RevealHighlight, RevealNotes]
+		});
+	</script>
+</body>
+
+</html>
