@@ -8,7 +8,7 @@
 
 	<link rel="stylesheet" href="dist/reset.css">
 	<link rel="stylesheet" href="dist/reveal.css">
-	<link rel="stylesheet" href="dist/theme/dracula.css">
+	<link rel="stylesheet" href="dist/theme/serif.css">
 	<link rel="stylesheet" href="dist/local.css">
 
 	<!-- Theme used for syntax highlighted code -->
@@ -18,11 +18,14 @@
 <body>
 	<div class="reveal">
 		<div class="slides">
-			<section data-background-image="assets/img/blade_chroma.png">
+			<section>
 				<h2 style="color: black;">Introduction to Numerical Hydrodynamics</h2>
 				<p>
-					<small><a href="https://eigendev.github.io/" target="_blank">Marcus DuPont</a>, author of SIMBI, NYU</small>
+					<small><a href="https://eigendev.github.io/" target="_blank">Marcus DuPont</a>, author of SIMBI,
+						NYU</small>
 				</p>
+				<a href="index.html" class="button"
+					style="display: inline-block; padding: 10px 20px; background: linear-gradient(to right, #28a745, #218838); color: white; text-decoration: none; border-radius: 5px;">Presentations</a>
 			</section>
 			<section>
 				<h2>Overview</h2>
@@ -183,7 +186,7 @@
 					</p>
 					$$
 					\left| a \frac{\Delta t}{\Delta x} \right| \leq C_{\rm max}; ~~ C_{\rm max} = 1~~\text{if using
-					 explicit solver}
+					explicit solver}
 					$$
 					<!-- <p>$C_{\rm max} = 1$ explicit solvers and $C_{\rm max} > 1$ implicit solvers.</p> -->
 				</section>
@@ -482,7 +485,7 @@
 				<p>where</p>
 				<div>
 					\[\begin{aligned}
-					T^{\mu \nu} &amp; = \rho h u^\mu u^\nu + p \eta^{\mu \nu}; 
+					T^{\mu \nu} &amp; = \rho h u^\mu u^\nu + p \eta^{\mu \nu};
 					\eta^{\mu\nu} = \text{diag}(-1,+1, +1, +1)\\
 					p(\rho, \varepsilon) &amp; = (\gamma - 1)\rho \varepsilon\\
 					h &amp; = 1 + \gamma p / (\rho(\gamma - 1))
@@ -520,7 +523,8 @@
 					$$
 					\Gamma = (1 - v^2)^{-1/2}
 					$$
-					which couples the velocity terms to all equations, so we now have a non-linear (in $\Gamma$) equation for the
+					which couples the velocity terms to all equations, so we now have a non-linear (in $\Gamma$)
+					equation for the
 					pressure:
 					$$
 					\tau + \Gamma \rho + p = \rho \Gamma^2 + \frac{\gamma}{\gamma - 1}p \Gamma^2
@@ -916,32 +920,35 @@ Average zone update/sec for 15253 iterations was 4.32e+06 zones/sec
 					</code></pre>
 				</section>
 				<section>
-						<h2>Visualizing</h2>
-						<pre><code>
+					<h2>Visualizing</h2>
+					<pre><code>
 	simbi plot data/1000.chkpt* --field rho p v 
 						</code></pre>
-						<img style="height: 450px" src="assets/img/sod_ex.png" alt="">
+					<img style="height: 450px" src="assets/img/sod_ex.png" alt="">
 				</section>
 				<section>
 					<h2>Visualizing, moving mesh</h2>
 					<pre><code>
 simbi plot data/marti_muller/1000.chkpt* --field d p u --kind movie
 					</code></pre>
-					<video data-autoplay data-background-video-loop="loop" src="assets/mov/marti_muller.mp4" type="video/mp4" height="400px"></video>
+					<video data-autoplay data-background-video-loop="loop" src="assets/mov/marti_muller.mp4"
+						type="video/mp4" height="400px"></video>
 				</section>
 				<section>
 					<h2>Visualizing, 2D shock tube</h2>
 					<pre><code>
 simbi plot data/quad_shocktube/400.chkpt* --field d --kind movie --log
 					</code></pre>
-					<video data-autoplay data-background-video-loop="loop" src="assets/mov/2D_shocktube.mp4" type="video/mp4" height="400px"></video>
+					<video data-autoplay data-background-video-loop="loop" src="assets/mov/2D_shocktube.mp4"
+						type="video/mp4" height="400px"></video>
 				</section>
 				<section>
 					<h3>Visualizing, astrophysical jet</h3>
 					<pre><code>
 simbi plot data/jet/2048.chkpt* --field d --kind movie --pictorial --dbg
 					</code></pre>
-					<video data-autoplay data-background-video-loop="loop" src="assets/mov/jet.mp4" type="video/mp4" height="400px"></video>
+					<video data-autoplay data-background-video-loop="loop" src="assets/mov/jet.mp4" type="video/mp4"
+						height="400px"></video>
 				</section>
 			</section>
 			<section>
@@ -977,7 +984,8 @@ simbi plot data/jet/2048.chkpt* --field d --kind movie --pictorial --dbg
 				<section>
 					<h3>Code base</h3>
 					<h4><a href="https://github.com/EigenDev/simbi/tree/main">git repo</a></h4>
-					<img src="assets/img/qr-code.png" style="height: 512px; margin: 0 auto 4rem auto; background-color: transparent;" alt="">
+					<img src="assets/img/qr-code.png"
+						style="height: 512px; margin: 0 auto 4rem auto; background-color: transparent;" alt="">
 				</section>
 			</section>
 		</div>
