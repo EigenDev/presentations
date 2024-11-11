@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<title>Intro To Numerical Hydrodynamics</title>
+
+	<link rel="stylesheet" href="dist/reset.css">
+	<link rel="stylesheet" href="dist/reveal.css">
+	<link rel="stylesheet" href="dist/theme/dracula.css">
+	<link rel="stylesheet" href="dist/local.css">
+
+	<!-- Theme used for syntax highlighted code -->
+	<link rel="stylesheet" href="plugin/highlight/monokai.css">
+</head>
+
+<body>
+	<div class="reveal">
+		<div class="slides">
+			<section data-background-image="assets/img/blade_chroma.png">
+				<h2 style="color: black;">Introduction to Numerical Hydrodynamics</h2>
+				<p>
+					<small><a href="https://eigendev.github.io/" target="_blank">Marcus DuPont</a>, author of SIMBI, NYU</small>
+				</p>
+			</section>
+			<section>
+				<h2>Overview</h2>
+				<div div style="width: 50%; margin: 0 auto;">
+					<ul>
+						<li>Newtonian Fluids
+							<ul>
+								<li>Basic Equations</li>
+								<li>Riemann Solvers</li>
+							</ul>
+						</li>
+						<li>Special Relativistic Fluids
+							<ul>
+								<li>Basic Equations</li>
+								<li>Riemann Solvers</li>
+							</ul>
+						</li>
+						<li>Numerics</li>
+					</ul>
+				</div>
+			</section>
+			<section>
+				<h1>Basic Equations (Newtonian)</h1>
+			</section>
+			<section>
+				<h2>Euler's equations (EEs) </h2>
+				<div class="eqn-box">
+					\[\begin{aligned}
+					\partial_t \rho + \nabla \cdot (\rho \vec{v}) &amp; = 0 \\
+					\partial_t (\rho \vec{v}) + \nabla \cdot (\rho \vec{v} \otimes \vec{v}) &amp; = - \nabla p
+					\\
+					\partial_t (\rho e_{\rm T}) + \nabla \cdot [(p + \rho e_{\rm T})\vec{v}] &amp; = 0
+					\end{aligned} \]
+				</div>
+				<p>where</p>
+				<div>
+					\[\begin{aligned}
+					e_{\rm T} &amp; = \varepsilon + \frac{1}{2}v^2\\
+					p(\rho, \varepsilon) &amp; = (\gamma - 1)\rho \varepsilon
+					\end{aligned} \]
+				</div>
+			</section>
+			<section>
+				<h2>EEs in conservative form</h2>
+				<div class="eqn-box">
+					\[\begin{aligned}
+					\partial_t
+					\begin{pmatrix}
+					\rho \\
+					\rho \vec{v} \\
+					\rho e_{\rm T}
+					\end{pmatrix} +
+					\nabla \cdot
+					\begin{pmatrix}
+					\rho \vec{v} \\
+					\rho \vec{v} \otimes \vec{v} + p \hat{I} \\
+					[\rho e_{\rm T} + p]\vec{v}
+					\end{pmatrix} =
+					\begin{pmatrix}
+					0\\
+					0\\
+					0
+					\end{pmatrix}
+					\end{aligned} \]
+				</div>
+				<p>which can be written as</p>
+				\[
+				\partial_t \vec{U} + \nabla \cdot [\vec{F}(\vec{U})] = \vec{S}
+				\]
+			</section>
+			<section>
+				<h3>Examples of source terms, $\vec{S}$</h3>
+				<ul>
+					<li>External forces such as gravity</li>
+					<li>Radiative heating / cooling: happen on shorter timescales than the fluid dynamics modeled</li>
+					<li>Ionization, chemical kinetics: ion species not individually conserved</li>
+					<li>Geometric source terms: appear when transforming into curvlinear coordinates</li>
+				</ul>
+			</section>
+			<section>
+				<section>
+					<h3>Finite Volume Methods (1D)</h3>
+					<p>The conservative EEs in integral form are</p>
+					\[
+					\frac{d}{dt} \int_{x_1}^{x_2} U(x, t)dx = F[U(x_1,t)] - F[U(x_2,t)]
+					\]
+					<p>which, over one grid cell in a single time step, gives</p>
+					\[
+					\begin{aligned}
+					&amp; \int_{x_{i-1/2}}^{x_{i+1/2}}U(x, t_{n+1})dx - \int_{x_{i-1/2}}^{x_{i+1/2}}U(x, t_n)dx\\
+					&amp; ~~~= \int_{t_n}^{t_{n+1}}F[U(x_{i-1/2},t)]dt - \int_{t_n}^{t_{n+1}}F[U(x_{i+1/2},t)]dt;
+					\end{aligned}
+					\]
+				</section>
+				<section>
+					<p>If we define some average conserved quantity, $\bar{U}$, such that</p>
+					$$
+					\bar{U}_i^{n} \approx \frac{1}{\Delta x} \int_{\mathcal{X}_i} U(x, t_n)dx; ~ \mathcal{X}_i =
+					[x_{i-1/2}, x_{i+1/2}]
+					$$
+					<p>then we can rewrite the integral form from before as</p>
+					$$
+					\bar{U}_i^{n+1} = \bar{U}_i^n - \frac{\Delta t}{\Delta x}(\bar{F}^n_{i+1/2} - \bar{F}^n_{i-1/2})
+					$$
+					<p>where</p>
+					$$
+					\bar{F}_i^n \approx \frac{1}{\Delta t} \int_{t_n}^{t_{n+1}}F[U(x_i,t)]dt
+					$$
+				</section>
+			</section>
+			<section>
+				<section>
+					<h3>Godunov's Scheme</h3>
+					<p>
+						We can't solve the flux time integrals exactly since $U(x_i,t)$ varies
+						with time along each edge of the cell, and we don't have the exact solution to
+						help with this.
+					</p>
+					<p>
+						What Sergei Godunov (1959) did was to treat the values $U^n$ at time $t_n$ as some
+						piecewise constant function $\tilde{U}^n(x,t_n)$ with value $U_i^n$ for all
+						$x$ in the interval $\mathcal{X}_i$. We might then redefine the flux integral as:
+						$$
+						\bar{F}_i^n = \frac{1}{\Delta t}\int_{t_n}^{t_{n+1}} F(\tilde{U}(x_i,t))dt
+						$$
+					</p>
+				</section>
+				<section>
+					<h4>Pictorially, series of Riemann problems</h4>
+					<img src="assets/img/godunov2.png"
+						style="height: 623px; margin: 0 auto 4rem auto; background: transparent;" alt="">
+				</section>
+				<section>
+					<h3>Similarity solution</h3>
+					<p>If $U^*(U_L,U_R)$ is the exact solution to the Riemann problem along the ray $x/t$ given the
+						data:</p>
+					$$
+					U(x, 0) =
+					\begin{cases}
+					U_L & \text{if}~~ x < 0\\ U_R & \text{if}~~ x> 0
+						\end{cases}
+						$$
+						<p>then</p>
+						$$
+						\tilde{U}^n(x_i,t) \equiv U^*(U^n_{i-1}, U^n_i)
+						$$
+						<p>for all $t \in [t_n, t_{n+1}$] as long as $\Delta t$ is small enough (?).</p>
+				</section>
+				<section>
+					<h3>Stability: Linear wave problem</h3>
+					<p>Let $F = aU$, then</p>
+					$$
+					U_i^{n+1} = U_i^{n} - a \frac{\Delta t}{\Delta x}(U^n_i - U^{n}_{i-1})
+					$$
+					<p>which requires $|a \frac{\Delta t}{\Delta x}| \leq 1$. This is the Courant-Friedrichs-Lewy (CFL)
+						stability condition.
+						More generally, the stability condition is
+					</p>
+					$$
+					\left| a \frac{\Delta t}{\Delta x} \right| \leq C_{\rm max}; ~~ C_{\rm max} = 1~~\text{if using
+					 explicit solver}
+					$$
+					<!-- <p>$C_{\rm max} = 1$ explicit solvers and $C_{\rm max} > 1$ implicit solvers.</p> -->
+				</section>
+			</section>
+			<section>
+				<section>
+					<h3>Approximate Riemann Solvers: Harten, Lax, & van Leer (HLL; 1983)</h3>
+					<p>If $s_{i-1/2}^R$ and $s_{i-1/2}^L$ are the upper and lower bounds for the
+						largest and smallest signal velocities resulting from the solution of the Riemann problem
+						centered at $x_{i-1/2}$, then the approximate solution is taken to be
+					</p>
+					$$
+					U(x,t) =
+					\begin{cases}
+					U_L & \text{if}~~ x/t \leq s^L_{i-1/2}\\
+					U_{\rm HLL} & \text{if}~~ s^L_{i-1/2} \leq x/t \leq s^R_{i-1/2}\\
+					U_R & \text{if}~~ s^R_{i-1/2} \leq x/t\\
+					\end{cases}
+					$$
+				</section>
+				<section>
+					<h3>Pictorially, HLL</h3>
+					<img src="assets/img/hll.jpg"
+						style="height: 623px; margin: 0 auto 4rem auto; background: transparent;" alt="">
+				</section>
+				<section>
+					<h3>The HLL state</h3>
+					<p>given some signal velocities, $s_L$ and $s_R$, integrating
+						\[
+						\begin{aligned}
+						&amp; \int_{x_{i-1/2}}^{x_{i+1/2}}U(x, t_{n+1})dx - \int_{x_{i-1/2}}^{x_{i+1/2}}U(x, t_n)dx\\
+						&amp; ~~~= \int_{t_n}^{t_{n+1}}F[U(x_{i-1/2},t)]dt - \int_{t_n}^{t_{n+1}}F[U(x_{i+1/2},t)]dt
+						\end{aligned}
+						\]
+						gives the intermediate state
+						$$
+						U_{\rm HLL} = \frac{s_R U_R - s_L U_L + F_L - F_R}{s_R - s_L}
+						$$
+					</p>
+				</section>
+				<section>
+					<h3>The HLL flux</h3>
+					<p>Applying the integral form of
+						the conservation laws over the cell control
+						volumes and inserting $U_{\rm HLL}$ gives:
+						$$
+						F_{\rm HLL} = \frac{s_RF_L - s_LF_R + s_Ls_R(U_R - U_L)}{s_R - s_L}.
+						$$
+						The intercell flux for the Godunov scheme is then
+						$$
+						F_{i+1/2}^{\rm HLL} =
+						\begin{cases}
+						F_L & \text{if}~~ 0 \leq s_L\\
+						\frac{s_RF_L - s_LF_R + s_Ls_R(U_R - U_L)}{s_R - s_L} & \text{if}~~ s_L \leq 0 \leq s_R\\
+						F_R & \text{if}~~ 0 \geq s_R
+						\end{cases}
+						$$
+					</p>
+				</section>
+			</section>
+			<section>
+				<section>
+					<h3>The HLLC flux</h3>
+					<p>
+						Notice that the HLL Riemann solver does not include the contact and shear waves.
+						This was remedied by Toro et al. 1992 and its extension was called the HLLC(ontact) solver.
+						The HLLC intercell flux is then
+						$$
+						F_{i+1/2}^{\rm HLLC} =
+						\begin{cases}
+						F_L & \text{if}~~ 0 \leq s_L\\
+						F_{*L} & \text{if}~~ s_L \leq 0 \leq s_*\\
+						F_{*R} & \text{if}~~ s_* \leq 0 \leq s_R\\
+						F_R & \text{if}~~ 0 \geq s_R
+						\end{cases}
+						$$
+						where
+						$
+						F_{*D} = F_D + s_D(U_{*D} - U_D);~~ D = L~\text{or}~R
+						$
+					</p>
+				</section>
+				<section>
+					<h3>HLLC, pictorially</h3>
+					<img src="assets/img/hllc.jpg"
+						style="height: 623px; margin: 0 auto 4rem auto; background: transparent;" alt="">
+
+				</section>
+			</section>
+			<section>
+				<h3>Noticing the difference</h3>
+				<img src="assets/img/simbi_hllc.png"
+					style="height: 512px; margin: 0 auto 4rem auto; background: transparent;" alt="">
+			</section>
+			<section>
+				<section>
+					<h3>Implementation</h3>
+					<p>
+						Usually we define a vector of primitive variables, $W$, that
+						all of the conservative variables, $U$, are derived from. Namely,
+						$$
+						W =
+						\begin{pmatrix}
+						\rho \\
+						\vec{v} \\
+						p
+						\end{pmatrix}~~
+						\text{so that}~~
+						U =
+						\begin{pmatrix}
+						W_\rho\\
+						W_\rho W_{v}\\
+						W_p / (\gamma - 1) + W_\rho W_v^2
+						\end{pmatrix}
+						$$
+					</p>
+				</section>
+				<section>
+					<h3>Implementation: Some Definitions (C++)</h3>
+					<pre><code data-trim data-noescap data-line-numbers="1-3,8-10,15-18">
+						constexpr double gamma_ad = 5.0 / 3.0;
+						struct Primitive {
+							double rho, v1, v2, v3, pre;
+							/**
+							Helper Functions
+							...
+							**/
+						};
+						struct Conserved {
+							double rho, m1, m2, m3, nrg;
+							/**
+							Helper Functions
+							...
+							**/
+						};
+						struct Eigenvals {
+							double sL, sR;
+						}
+					</code></pre>
+				</section>
+				<section>
+					<h3>Implementation: Cons2Prim & Prim2Cons (C++)</h3>
+					<pre><code data-trim data-noescap data-line-numbers>
+						Conservative prims2cons (const Primitive &w) {
+							double vsq = w.v1 * w.v1 + w.v2 * w.v2 + w.v3 + w.v3;
+							return {
+								w.rho,
+								w.rho * w.v1,
+								w.rho * w.v2,
+								w.rho * w.v3,
+								w.pre / (gamma_ad - 1.0) + 0.5 * w.rho * vsq  
+							};
+						};
+
+						Primitive cons2prim (const Conservative &u) {
+							double v1 = u.m1 / u.rho;
+							double v2 = u.m2 / u.rho;
+							double v3 = u.m3 / u.rho;
+							double vsq = v1 * v1 + v2 * v2 + v3 * v3;
+							double pre  = (gamma_ad - 1.0) * (w.nrg - 0.5 * w.rho * vsq);
+							return {
+								w.rho,
+								v1,
+								v2,
+								v3,
+								pre
+							};
+						};
+					</code></pre>
+				</section>
+				<section>
+					<h3>Implementation: Fluxes (C++)</h3>
+					<pre><code data-trim data-noescap data-line-numbers>
+					Conservative calc_hll_flux (/* variables */) {
+							// this just returns (vL - cs, vR + cs)
+							const auto lambda = calc_eigenvals(left_prims, right_prims);
+
+							const double sL   = lambda.sL;
+							const double sR   = lambda.sR;
+
+							// Compute the HLL Flux component-wise
+							if (0.0 <= sL) {
+								return left_flux;
+							}
+							else if (0.0 >= sR) {
+								return right_flux;
+							}
+							else {
+								return (left_flux * sR - right_flux * sL +
+													(right_state - left_state) * sR * sL) /
+												(sR - sL);
+							}
+						};
+
+					Conservative calc_hllc_flux (/* variables */) {
+							// this now returns (vL - cs, vR + cs, aStar, pStar)
+							const auto lambda = calc_eigenvals(left_prims, right_prims);
+
+   				const double sL     = lambda.sL;
+							const double sR     = lambda.sR;
+
+							// Quick checks before moving on with rest of computation
+							if (0.0 <= sL) {
+								return left_flux;
+							}
+							else if (0.0 >= sR) {
+								return right_flux;
+							}
+
+							const double aStar = lambda.aStar;
+							const double pStar = lambda.pStar;
+
+							const auto hll_flux = (left_flux * sR + right_flux * sL -
+											(right_state - left_state) * sL * sR) /
+											(sL + sR);
+
+							const auto hll_state =
+								(right_state * sR - left_state * sL - right_flux + left_flux) /
+								(sR - sL);
+
+							if (0.0 <= aStar) {
+								double pressure = left_prims.pre;
+								double v        = left_prims.v1;
+								double rho      = left_state.rho;
+								double m        = left_state.m1;
+								double energy   = left_state.nrg;
+								double cofac    = 1.0 / (sL - aStar);
+
+								double rhoStar = cofac * (sL - v) * rho;
+								double mstar   = cofac * (m * (sL - v) - pressure + pStar);
+								double eStar =
+									cofac * (energy * (sL - v) + pStar * aStar - pressure * v);
+
+								auto star_state = Conserved{rhoStar, mstar, eStar};
+
+								// Compute the intermediate left flux
+								return left_flux + (star_state - left_state) * sL -
+									star_state * vface;
+							}
+							else {
+								double pressure = right_prims.pre;
+								double v        = right_prims.v1;
+								double rho      = right_state.rho;
+								double m        = right_state.m1;
+								double energy   = right_state.nrg;
+								double cofac    = 1.0 / (sR - aStar);
+
+								double rhoStar = cofac * (sR - v) * rho;
+								double mstar   = cofac * (m * (sR - v) - pressure + pStar);
+								double eStar =
+									cofac * (energy * (sR - v) + pStar * aStar - pressure * v);
+
+								auto star_state = Conserved{rhoStar, mstar, eStar};
+
+								// Compute the intermediate right flux
+								return right_flux + (star_state - right_state) * sR -
+									star_state * vface;
+							}
+						
+					</code></pre>
+				</section>
+				<section>
+					<h3>Implementation: Update (C++)</h3>
+					<pre>
+						<code data-trim data-noescap data-line-numbers>
+							const Conserved f_rf = calc_hllc_flux(/* depends on i, and i+1 cells */);
+							const Conserved f_lf = calc_hllc_flux(/* depends on i, and i-1 cells */);
+
+							// update the conserved vector at cell i
+							u[i] -= dt * (f_rf - f_lf) / dx;
+						</code>
+					</pre>
+				</section>
+			</section>
+			<section>
+				<h3>Regime of Applicability</h3>
+				<ul>
+					<li>Non-relativistic blast waves</li>
+					<li>Accretion problems</li>
+					<li>Hydrodynamic bow shock problems</li>
+					<li>Most strong shock problems</li>
+					<!-- <li>Small-scale problems</li> -->
+				</ul>
+			</section>
+			<section>
+				<h1>Basic Equations (Relativistic)</h1>
+			</section>
+			<section>
+				<h2>Special Relativistic Hydrodynamics (SRHD) </h2>
+				<div class="eqn-box">
+					\[\begin{aligned}
+					\partial_\mu (\rho u^\mu) &amp; = 0 \\
+					\partial_\mu T^{\mu\nu} &amp; = 0
+					\end{aligned} \]
+				</div>
+				<p>where</p>
+				<div>
+					\[\begin{aligned}
+					T^{\mu \nu} &amp; = \rho h u^\mu u^\nu + p \eta^{\mu \nu}; 
+					\eta^{\mu\nu} = \text{diag}(-1,+1, +1, +1)\\
+					p(\rho, \varepsilon) &amp; = (\gamma - 1)\rho \varepsilon\\
+					h &amp; = 1 + \gamma p / (\rho(\gamma - 1))
+
+					\end{aligned} \]
+				</div>
+			</section>
+			<section>
+				<h2>SRHD in conservative form</h2>
+				<div class="eqn-box">
+					\[\begin{aligned}
+					\partial_t
+					\begin{pmatrix}
+					\Gamma \rho \\
+					\rho h \Gamma^2 \vec{v} \\
+					\tau
+					\end{pmatrix} +
+					\nabla \cdot
+					\begin{pmatrix}
+					\Gamma \rho \vec{v} \\
+					\rho h \Gamma^2 \vec{v} \otimes \vec{v} + p \hat{I} \\
+					\rho h \Gamma^2 \vec{v} - \Gamma \rho \vec{v}
+					\end{pmatrix} = 0
+					\end{aligned} \]
+				</div>
+				<p>with $\tau = \rho h \Gamma^2 - p - \Gamma \rho$. The above can still be written as</p>
+				\[
+				\partial_t \vec{U} + \nabla \cdot [\vec{F}(\vec{U})] = 0
+				\]
+			</section>
+			<section>
+				<h3>Difference from Newtonian</h3>
+				<p>
+					Almost everything is the same as before except now you have
+					$$
+					\Gamma = (1 - v^2)^{-1/2}
+					$$
+					which couples the velocity terms to all equations, so we now have a non-linear (in $\Gamma$) equation for the
+					pressure:
+					$$
+					\tau + \Gamma \rho + p = \rho \Gamma^2 + \frac{\gamma}{\gamma - 1}p \Gamma^2
+					$$
+					which can be solved using a root finding algorithm.
+				</p>
+			</section>
+			<section>
+				<section>
+					<h3>Implementation</h3>
+					<p>
+						Usually we define a vector of primitive variables, $W$, that
+						all of the conservative variables, $U$, are derived from. Namely,
+						$$
+						W =
+						\begin{pmatrix}
+						\rho \\
+						\vec{v} \\
+						p
+						\end{pmatrix}~~
+						\text{and}~~
+						U =
+						\begin{pmatrix}
+						\rho \Gamma := D \\
+						\rho h \Gamma^2 \vec{v} := \vec{M}\\
+						\tau
+						\end{pmatrix}
+						$$
+					</p>
+				</section>
+				<section>
+					<h3>Implementation: Some Definitions (C++)</h3>
+					<pre><code data-trim data-noescap data-line-numbers="1-3,8-10,15-18">
+						constexpr double gamma_ad = 4.0 / 3.0;
+						struct Primitive {
+							double rho, v1, v2, v3, pre;
+							/**
+							Helper Functions
+							...
+							**/
+						};
+						struct Conserved {
+							double rho, m1, m2, m3, nrg;
+							/**
+							Helper Functions
+							...
+							**/
+						};
+						struct Eigenvals {
+							double sL, sR;
+						}
+					</code></pre>
+				</section>
+				<section>
+					<h3>Implementation: Cons2Prim & Prim2Cons (C++)</h3>
+					<pre><code data-trim data-noescap data-line-numbers>
+						Conservative prims2cons (const Primitive &w) {
+							double vsq = w.v1 * w.v1 + w.v2 * w.v2 + w.v3 + w.v3;
+							double lorentz = 1 / std::sqrt(1.0 - vsq);
+							double h = 1.0 + w.p * gamma_ad / (w.rho * (gamma_ad - 1.0));
+							double tau = w.rho * h * lorentz * lorentz - w.p - lorentz * w.rho;
+							return {
+								w.rho * lorentz,
+								w.rho * h * lorentz * lorentz * w.v1,
+								w.rho * h * lorentz * lorentz * w.v2,
+								w.rho * h * lorentz * lorentz * w.v3,
+								tau
+							};
+						};
+
+						Primitive cons2prim (const Conservative &u) {
+							/* Details */
+							do {
+								// compute x_[k+1]
+								f = newton_f(gamma, tau, d, m, peq);
+								g = newton_g(gamma, tau, d, m, peq);
+
+								// newton_f = (gamma_ad - 1.0) * rho * eps - p;
+								// newton_g = cs^2 * v^2 - 1.0 (Aloy et al. 1999)
+								peq -= f / g;
+			
+								if (iter >= global::MAX_ITER || std::isnan(peq)) {
+									troubled_data[gid] = 1;
+									dt                 = INFINITY;
+									inFailureState     = true;
+									found_failure      = true;
+									break;
+								}
+								iter++;
+			
+							} while (std::abs(f / g) >= tol);
+
+							const double inv_et = 1.0 / (tau + d + peq);
+							const double v1     = m1 * inv_et;
+							const double lorentz= 1.0 / std::sqrt(1.0 - v1 * v1);
+							return {d / lorentz, v1, peq};
+						};
+					</code></pre>
+				</section>
+				<section>
+					<h3>Implementation: Fluxes (C++)</h3>
+					<pre><code data-trim data-noescap data-line-numbers>
+					Conservative calc_hll_flux (/* variables */) {
+							// this returns wavespeeds according
+							// to Eq. 23 in Mignone and Bodo (2005)
+							const auto lambda = calc_eigenvals(left_prims, right_prims);
+
+							const double sL   = lambda.sL;
+							const double sR   = lambda.sR;
+
+							// Compute the HLL Flux component-wise
+							if (0.0 <= sL) {
+								return left_flux;
+							}
+							else if (0.0 >= sR) {
+								return right_flux;
+							}
+							else {
+								return (left_flux * sR - right_flux * sL +
+													(right_state - left_state) * sR * sL) /
+												(sR - sL);
+							}
+						};
+
+					Conservative calc_hllc_flux (/* variables */) {
+							// this now returns (vL - cs, vR + cs, aStar, pStar)
+							const auto lambda = calc_eigenvals(left_prims, right_prims);
+
+   				const double sL     = lambda.sL;
+							const double sR     = lambda.sR;
+
+							// Quick checks before moving on with rest of computation
+							if (0.0 <= sL) {
+								return left_flux;
+							}
+							else if (0.0 >= sR) {
+								return right_flux;
+							}
+
+							const double aStar = lambda.aStar;
+							const double pStar = lambda.pStar;
+
+							const auto hll_flux = (left_flux * sR + right_flux * sL -
+											(right_state - left_state) * sL * sR) /
+											(sL + sR);
+
+							const auto hll_state =
+								(right_state * sR - left_state * sL - right_flux + left_flux) /
+								(sR - sL);
+
+							if (0.0 <= aStar) {
+								double pressure = left_prims.pre;
+								double v        = left_prims.v1;
+								double rho      = left_state.rho;
+								double m        = left_state.m1;
+								double energy   = left_state.nrg;
+								double cofac    = 1.0 / (sL - aStar);
+
+								double rhoStar = cofac * (sL - v) * rho;
+								double mstar   = cofac * (m * (sL - v) - pressure + pStar);
+								double eStar =
+									cofac * (energy * (sL - v) + pStar * aStar - pressure * v);
+
+								auto star_state = Conserved{rhoStar, mstar, eStar};
+
+								// Compute the intermediate left flux
+								return left_flux + (star_state - left_state) * sL -
+									star_state * vface;
+							}
+							else {
+								double pressure = right_prims.pre;
+								double v        = right_prims.v1;
+								double rho      = right_state.rho;
+								double m        = right_state.m1;
+								double energy   = right_state.nrg;
+								double cofac    = 1.0 / (sR - aStar);
+
+								double rhoStar = cofac * (sR - v) * rho;
+								double mstar   = cofac * (m * (sR - v) - pressure + pStar);
+								double eStar =
+									cofac * (energy * (sR - v) + pStar * aStar - pressure * v);
+
+								auto star_state = Conserved{rhoStar, mstar, eStar};
+
+								// Compute the intermediate right flux
+								return right_flux + (star_state - right_state) * sR -
+									star_state * vface;
+							}
+						
+					</code></pre>
+				</section>
+				<section>
+					<h3>Implementation: Update (C++)</h3>
+					<pre>
+						<code data-trim data-noescap data-line-numbers>
+							const Conserved f_rf = calc_hllc_flux(/* depends on i, and i+1 cells */);
+							const Conserved f_lf = calc_hllc_flux(/* depends on i, and i-1 cells */);
+
+							// update the conserved vector at cell i
+							u[i] -= dt * (f_rf - f_lf) / dx;
+						</code>
+					</pre>
+				</section>
+			</section>
+			<section>
+				<h3>Regime of Applicability</h3>
+				<ul>
+					<li>Relativistic blast waves</li>
+					<li>Astrophysical jets</li>
+					<li>Relativistic turbulence</li>
+					<li>Extreme temperaures / shock jump problems</li>
+				</ul>
+			</section>
+			<section>
+				<p>
+					Something to note --- Relativistic problems with large $\Gamma$ must be very high resolution
+					since:
+				<ul>
+					<li>a spherical blast wave is Lorentz contracted by $R / \Gamma^2$</li>
+					<li>Usually, a very small amount of mass is accelerated to high $\Gamma$</li>
+				</ul>
+				</p>
+				<p>otherwise, your simulation can just crash or give a wrong result. </p>
+			</section>
+			<section>
+				<h1>Setups</h1>
+			</section>
+			<section>
+				<section>
+					<h3>Setting up a problem</h3>
+					<p>Setting up a problem is code-specific, so I will only show how to do it with simbi</p>
+				</section>
+				<section>
+					<h3>What is simbi?</h3>
+					<p>3D Relativistic MHD, GPU-Accelerated moving mesh gas dynamics code with the following features:
+					</p>
+					<ul>
+						<li>Eulerian in Cartesian, Cylindrical, and Spherical</li>
+						<li>CPU / GPU agnostic</li>
+						<li>User-defined mesh motion as well as dynamic BCs</li>
+						<li>Same code runs on Nvidia and AMD GPUs</li>
+						<li>C++ backend with a Python front end</li>
+						<li>Immersed boundary on top of grid (Peskin 2002)</li>
+						<li>Passive scalars</li>
+						<li>Can make synchrotron light curves and sky maps in post processing</li>
+					</ul>
+				</section>
+				<section>
+					<h3>How do I set up a problem in simbi?</h3>
+					<h4>Ex: Sod Problem</h4>
+					<pre><code data-line-numbers="2-3|5|6-8|9-10|12-14|16-18|20-22|24-26|28-30|32-34|36-38|">
+from simbi import BaseConfig, DynamicArg, simbi_property
+from simbi.key_types import * 
+
+class SodProblem(BaseConfig):
+    """
+    Sod's Shock Tube Problem in 1D Newtonian Fluid
+    """
+    nzones    = DynamicArg("nzones", 1000, help="number of grid zones", var_type=int)
+    ad_gamma  = DynamicArg("ad-gamma", 5.0 / 3.0, help="Adiabatic gas index", var_type = float)
+    
+    @simbi_property
+    def initial_state(self) -> Sequence[Sequence[float]]:
+        return ((1.0, 0.0, 1.0), (0.125, 0.0, 0.1))
+    
+    @simbi_property
+    def geometry(self) -> Sequence[float]:
+        return (0.0, 1.0, 0.5)
+
+    @simbi_property
+    def x1_cell_spacing(self) -> str:
+        return "linear"
+    
+    @simbi_property
+    def coord_system(self) -> str:
+        return "cartesian"
+
+    @simbi_property
+    def resolution(self) -> DynamicArg:
+        return self.nzones 
+    
+    @simbi_property
+    def gamma(self) -> DynamicArg:
+        return self.ad_gamma 
+    
+    @simbi_property
+    def regime(self) -> str:
+        return "classical"
+					</code></pre>
+				</section>
+				<section>
+					<h3>Running it</h3>
+					<pre><code></code>>
+						simbi run sod [options]
+					</code></pre>
+					<p>where options can be
+					<pre><code></code>>
+							simbi run sod --data-dir "blah", --time-order [rk1, rk2], --space-order [pcm, plm], --mode [gpu,cpu,omp] --solver [hll, hllc]
+							--nzones 10000, --ad-gamma 1.4
+						</code></pre>
+					<p>for example. There's many more. </p>
+					</p>
+				</section>
+				<section>
+					<h3>Output of "simbi run sod ..." </h3>
+					<pre><code>
+(base) ~/research/simbi/ [develop*] simbi run sod --omp -p 1
+--------------------------------------------------------------------------------
+Validating Config Script Type Safety...
+Success: no issues found in 1 source file
+--------------------------------------------------------------------------------
+Initializing Problem With a 1D Discontinuity...
+
+Problem Parameters:
+================================================================================
+ad-gamma...................... 1.667           Adiabatic gas index
+nzones........................ 1000            number of grid zones
+================================================================================
+
+    Sod's Shock Tube Problem in 1D Newtonian Fluid
+
+================================================================================
+================================================================================
+Simulation Parameters
+================================================================================
+tstart........................ 0.000
+tend.......................... 1.000
+dlogt......................... 0.000
+plm_theta..................... 1.500
+x1_cell_spacing............... linear
+x2_cell_spacing............... linear
+x3_cell_spacing............... linear
+cfl........................... 0.100
+sources....................... None
+gsources...................... None
+bsources...................... None
+passive_scalars............... None
+solver........................ hllc
+chkpt......................... None
+chkpt_interval................ 0.100
+data_directory................ data/
+boundary_conditions........... outflow
+engine_duration............... 0.000
+compute_mode.................. omp
+quirk_smoothing............... False
+constant_sources.............. False
+scale_factor.................. None
+scale_factor_derivative....... None
+dens_outer.................... None
+mom_outer..................... None
+edens_outer................... None
+object_positions.............. None
+boundary_sources.............. None
+spatial_order................. plm
+time_order.................... rk2
+adiabatic_gamma............... 1.67
+resolution.................... (1000,)
+geometry...................... (0.0, 1.0, 0.5)
+coord_system.................. cartesian
+regime........................ srhd
+================================================================================
+2024-03-14 14:02:05,328 - SIMBI - DEBUG - Using OpenMP multithreading
+
+Loading... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:01
+================================================================================
+Computing solution using PLM in space, RK2 in time...
+================================================================================
+CPU Compute Thread(s): 8
+
+[Writing File...: data/1000.chkpt.000_000.h5]
+iteration:  1300    dt: 7.25e-05    time: 9.43e-02    zones/sec: 4.60e+06 [==>                         ] 9 %
+[Writing File...: data/1000.chkpt.000_100.h5]
+iteration:  2700    dt: 7.25e-05    time: 1.96e-01    zones/sec: 4.29e+06 [=====>                      ] 19 %
+[Writing File...: data/1000.chkpt.000_200.h5]
+iteration:  4100    dt: 7.25e-05    time: 2.97e-01    zones/sec: 5.19e+06 [========>                   ] 29 %
+[Writing File...: data/1000.chkpt.000_300.h5]
+iteration:  5500    dt: 7.25e-05    time: 3.99e-01    zones/sec: 4.04e+06 [===========>                ] 39 %
+[Writing File...: data/1000.chkpt.000_400.h5]
+iteration:  6800    dt: 7.25e-05    time: 4.93e-01    zones/sec: 3.74e+06 [=============>              ] 49 %
+[Writing File...: data/1000.chkpt.000_500.h5]
+iteration:  8200    dt: 7.25e-05    time: 5.95e-01    zones/sec: 4.27e+06 [================>           ] 59 %
+[Writing File...: data/1000.chkpt.000_600.h5]
+iteration:  9900    dt: 5.70e-05    time: 6.95e-01    zones/sec: 3.93e+06 [===================>        ] 69 %
+[Writing File...: data/1000.chkpt.000_700.h5]
+iteration: 11700    dt: 5.70e-05    time: 7.98e-01    zones/sec: 4.35e+06 [======================>     ] 79 %
+[Writing File...: data/1000.chkpt.000_800.h5]
+iteration: 13400    dt: 5.70e-05    time: 8.94e-01    zones/sec: 4.46e+06 [=========================>  ] 89 %
+[Writing File...: data/1000.chkpt.000_900.h5]
+iteration: 15200    dt: 5.70e-05    time: 9.97e-01    zones/sec: 3.58e+06 [===========================>] 99 %
+[Writing File...: data/1000.chkpt.001_000.h5]
+
+Average zone update/sec for 15253 iterations was 4.32e+06 zones/sec
+					</code></pre>
+				</section>
+				<section>
+						<h2>Visualizing</h2>
+						<pre><code>
+	simbi plot data/1000.chkpt* --field rho p v 
+						</code></pre>
+						<img style="height: 450px" src="assets/img/sod_ex.png" alt="">
+				</section>
+				<section>
+					<h2>Visualizing, moving mesh</h2>
+					<pre><code>
+simbi plot data/marti_muller/1000.chkpt* --field d p u --kind movie
+					</code></pre>
+					<video data-autoplay data-background-video-loop="loop" src="assets/mov/marti_muller.mp4" type="video/mp4" height="400px"></video>
+				</section>
+				<section>
+					<h2>Visualizing, 2D shock tube</h2>
+					<pre><code>
+simbi plot data/quad_shocktube/400.chkpt* --field d --kind movie --log
+					</code></pre>
+					<video data-autoplay data-background-video-loop="loop" src="assets/mov/2D_shocktube.mp4" type="video/mp4" height="400px"></video>
+				</section>
+				<section>
+					<h3>Visualizing, astrophysical jet</h3>
+					<pre><code>
+simbi plot data/jet/2048.chkpt* --field d --kind movie --pictorial --dbg
+					</code></pre>
+					<video data-autoplay data-background-video-loop="loop" src="assets/mov/jet.mp4" type="video/mp4" height="400px"></video>
+				</section>
+			</section>
+			<section>
+				<section>
+					<h3>Places simbi was used for science</h3>
+					<img src="assets/img/ellipsars.png" alt="">
+				</section>
+				<section>
+					<h3>Places simbi was used for science</h3>
+					<img src="assets/img/blades.png" alt="">
+				</section>
+				<section>
+					<h3>Places simbi was used for science</h3>
+					<img src="assets/img/roche.png" alt="">
+				</section>
+				<section>
+					<h3>Places simbi was used for science</h3>
+					<img src="assets/img/bow.png" alt="">
+				</section>
+			</section>
+			<section>
+				<section>
+					<h1>Dicussion Time (Thank You!)</h1>
+				</section>
+				<section>
+					<h3>Just in case</h3>
+					<ul>
+						<li>GPUs *can* be an order of magnitude faster than CPU problems</li>
+						<li>GPUs on a single node can know about each other's memory</li>
+						<li>GPUs now support hash maps (lookup tables), so detailed EoS should be possible</li>
+					</ul>
+				</section>
+				<section>
+					<h3>Code base</h3>
+					<h4><a href="https://github.com/EigenDev/simbi/tree/main">git repo</a></h4>
+					<img src="assets/img/qr-code.png" style="height: 512px; margin: 0 auto 4rem auto; background-color: transparent;" alt="">
+				</section>
+			</section>
+		</div>
+	</div>
+
+	<script src="dist/reveal.js"></script>
+	<script src="plugin/notes/notes.js"></script>
+	<script src="plugin/markdown/markdown.js"></script>
+	<script src="plugin/highlight/highlight.js"></script>
+	<script src="plugin/math/math.js"></script>
+	<script>
+		// More info about initialization & config:
+		// - https://revealjs.com/initialization/
+		// - https://revealjs.com/config/
+		Reveal.initialize({
+			hash: true,
+
+			mathjax3: {
+				mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+				tex: {
+					inlineMath: [['$', '$'], ['\\(', '\\)']]
+				},
+				options: {
+					skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+				},
+			},
+			// Learn about plugins: https://revealjs.com/plugins/
+			plugins: [RevealMarkdown, RevealHighlight, RevealNotes, RevealMath.MathJax3]
+		});
+	</script>
+</body>
+
+</html>
